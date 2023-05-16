@@ -1,0 +1,7 @@
+*.txt
+*.ppm
+*.exe
+*.png
+*.jpg
+obj_read_test.cpp
+root_test.cpp
