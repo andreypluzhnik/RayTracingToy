@@ -16,6 +16,7 @@
 #include "triangle.h"
 
 
+
 color ray_color(const ray& r, const color& background , const hittable& world, int depth){ // would be interesting to simulate attenuative reflection
     hit_record rec;
     

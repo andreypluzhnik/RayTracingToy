@@ -16,6 +16,9 @@ const double infinity = std::numeric_limits<double>::infinity();
 const double pi = 3.1415926535897932384626433832795028841971;
 const double EQN_EPS = 1e-12;
 
+enum winding {clockwise = 1, c_clockwise = -1};
+
+
 inline double degrees_to_radians(double degrees){
     return degrees * pi / 180;
 }

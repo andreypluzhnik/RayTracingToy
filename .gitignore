@@ -2,6 +2,7 @@
 *.ppm
 *.exe
 *.png
-*.jpg
+*.jpg 
+*.ipynb
 obj_read_test.cpp
 root_test.cpp
