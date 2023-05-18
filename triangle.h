@@ -58,9 +58,13 @@ class triangle : public hittable {
         virtual bool hit(const ray& r, double t_min, double t_max, hit_record& rec) const override;
         
 
-        // to be implemented
         virtual bool bounding_box(double time0, double time1, aabb& output_rect) const override {
-            output_rect = aabb(point3(-1,-1,-1),point3(1,1,1));
+            // output_rect = aabb(point3(0,0,0), point3(0,0,0));
+            for(int k = 0; k < 3; k++){
+                output_rect.minimum.e[k] = fmin(fmin(v0[k],v1[k]),v2[k]);
+                output_rect.maximum.e[k] = fmax(fmax(v0[k],v1[k]),v2[k]);
+            }
+            
             return true;
         }
 

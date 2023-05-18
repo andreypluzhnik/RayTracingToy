@@ -71,6 +71,26 @@ class translate : public hittable {
         vec3 offset;
 };
 
+class scale : public hittable {
+    public:
+        scale(shared_ptr<hittable> p, double s);
+        
+         virtual bool hit(
+            const ray& r, double t_min, double t_max, hit_record& rec) const override;
+
+        virtual bool bounding_box(double time0, double time1, aabb& output_box) const override {
+            output_box = bbox;
+            return hasbox;
+        }
+
+    public:
+        shared_ptr<hittable> ptr;
+        double scaling;
+        bool hasbox;
+        aabb bbox;
+
+};
+
 class rotate_y : public hittable {
     public:
         rotate_y(shared_ptr<hittable> p, double angle);
@@ -90,6 +110,32 @@ class rotate_y : public hittable {
         bool hasbox;
         aabb bbox;
 };
+
+scale::scale(shared_ptr<hittable> p, double s) : scaling(s), ptr(p)
+{
+    hasbox = p->bounding_box(0, 1, bbox);
+    bbox.minimum = bbox.minimum * scaling;
+    bbox.maximum = bbox.maximum * scaling;
+}
+
+bool scale::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
+    auto origin = r.origin();
+    origin[0] = origin[0] / scaling;
+    origin[1] = origin[1] / scaling;
+    origin[2] = origin[2] / scaling;
+    
+    ray scaled_r(origin, r.direction(), r.time());
+
+    if(!ptr->hit(scaled_r, t_min, t_max, rec)) return false;
+
+    rec.p *= scaling;
+    
+    return true;
+
+    
+
+}
+
 
 rotate_y::rotate_y(shared_ptr<hittable> p, double angle) : ptr(p) {
     auto radians = degrees_to_radians(angle);
