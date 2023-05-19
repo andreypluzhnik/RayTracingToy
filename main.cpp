@@ -92,13 +92,13 @@ hittable_list textured_triangle_mesh_cornell_box(){
     objects.add(make_shared<xz_rect>(0, 555, 0, 555, 0, white));
     objects.add(make_shared<xy_rect>(0, 555, 0, 555, 555, white));
 
-    // /* Textured Triangle */
+    // /* Textured Triangle Mesh*/
     auto mesh_tex = make_shared<barycentric_intrp>(color(1,0,0), color(0,1,0), color(0,0,1));
     auto mesh_mat = make_shared<lambertian>(mesh_tex);
-    shared_ptr<hittable> cube_mesh = make_shared<triangle_mesh>("cube.obj", mesh_mat,-1); 
-    cube_mesh = make_shared<scale>(cube_mesh, 100);
-    cube_mesh = make_shared<rotate_y>(cube_mesh, 35);
-    cube_mesh = make_shared<translate>(cube_mesh, vec3(265, 20, 390));
+    shared_ptr<hittable> cube_mesh = make_shared<triangle_mesh>("icosphere.obj", mesh_mat,-1); 
+    cube_mesh = make_shared<scale>(cube_mesh, 60);
+    cube_mesh = make_shared<rotate_y>(cube_mesh, 105);
+    cube_mesh = make_shared<translate>(cube_mesh, vec3(315, 150, 350));
     objects.add(cube_mesh);
     
 

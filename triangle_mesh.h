@@ -10,6 +10,7 @@
 #include <sstream>
 #include <list>
 #include <algorithm>
+#include <iostream>
 
 #include "ray.h"
 #include "triangle.h"
@@ -89,7 +90,6 @@ class triangle_mesh : public hittable{
                         int t_right = ( (t + 1 * winding) % (int)verts_idx.size() + (int)verts_idx.size() ) % (int)verts_idx.size();
                         
 
-                        std::cout << verts_idx[t] << " " << verts_idx[t_left] << " " << verts_idx[t_right]<< " size " << (int)verts_idx.size()<<std::endl;
                         while((int)verts_idx.size() > 3){
                             // confirm that three points form an 'ear'
                             if(is_ear(verts[verts_idx[t]],verts[verts_idx[t_right]],verts[verts_idx[t_left]],normals[normals_idx[t]])){
@@ -138,6 +138,11 @@ class triangle_mesh : public hittable{
                         for(int i = 0; i < 3; i++){
                             triangles_verts_idx.push_back(verts_idx.back());
                             verts_idx.pop_back();
+                            
+                            triangles_uvs_idx.push_back(uvs_idx.back());
+                            uvs_idx.pop_back();
+
+                            triangles_normals_idx.push_back(normals_idx.back());
                             normals_idx.pop_back();
                         }
                     
@@ -148,7 +153,7 @@ class triangle_mesh : public hittable{
                 }
 
             }catch(...){
-                std::cerr<<"There was a problem with reading the file.";
+                std::cerr<<"There was a problem with reading the mesh file.";
                 file.close();
             }
 
@@ -194,24 +199,23 @@ class triangle_mesh : public hittable{
                           const vec2& vt0, const vec2& vt1, const vec2& vt2,
                            const vec3& normal,const ray& r, double t_min, double t_max, hit_record& rec) const;
 
-        vec2 vt0 = vec2(1.0,0);
-        vec2 vt1 = vec2(0,1.0);
-        vec2 vt2 = vec2(0,0);
+        vec2 vtt0 = vec2(1.0,0);
+        vec2 vtt1 = vec2(0,1.0);
+        vec2 vtt2 = vec2(0,0);
 
 
 };
 
 // at the moment is copy of hittable_list hit func.
 bool triangle_mesh::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
-    bool hit_anything = true;
-    int closest_so_far = t_max;
+    bool hit_anything = false;
+    double closest_so_far = t_max;
     for(int i = 0; i < triangles_verts_idx.size()/3; i++){
-        if(triangle_hit(verts[3 * i], verts[3 * i + 1], verts[3 * i + 2], vt0, vt1, vt2, normals[triangles_normals_idx[3 * i]],r, t_min, closest_so_far, rec)){
+        if(triangle_hit(verts[triangles_verts_idx[3 * i]], verts[triangles_verts_idx[3 * i + 1]], verts[triangles_verts_idx[3 * i + 2]], vtt0, vtt1, vtt2, normals[triangles_normals_idx[3 * i]],r, t_min, closest_so_far, rec)){
             hit_anything = true;
             closest_so_far = rec.t;
         }
     }
-
     return hit_anything;
 
 }
@@ -245,7 +249,6 @@ bool triangle_mesh::triangle_hit(const vec3& v0, const vec3& v1, const vec3& v2,
             float t = dot(q, v02) * invDet;
 
             if(t < t_min || t > t_max) return false;
-
             vec2 vt_r = u * vt0 + v * vt1 + (1 - u - v) * vt2;
             rec.t = t;
             rec.u = vt_r[0];
@@ -253,7 +256,6 @@ bool triangle_mesh::triangle_hit(const vec3& v0, const vec3& v1, const vec3& v2,
             rec.p = r.at(rec.t);
             rec.set_face_normal(r, unit_vector(normal));
             rec.mat_ptr = mat_ptr;
-
             return true;   
 
 
@@ -280,7 +282,6 @@ bool triangle_mesh::in_triangle(const vec3 &v0, const vec3 &v1, const vec3 &v2, 
     // to be safe, project vp onto plane formed by the three points
 
     vec3 compare_to = cross(v01, v0p);
-    std::cout<<dot(compare_to, cross(v20, v2p))<< " " << dot(compare_to, cross(v12, v1p))<<std::endl;
     if(dot(compare_to, cross(v20, v2p)) < 0) return false;
 
     if(dot(compare_to, cross(v12, v1p)) < 0) return false;
