@@ -75,6 +75,8 @@ class bvh_node : public hittable {
         return hit_left || hit_right;
     
     }
+
+
 bvh_node::bvh_node(const std::vector<shared_ptr<hittable>>& src_objects,
     size_t start, size_t end, double time0, double time1){
         
@@ -90,10 +92,10 @@ bvh_node::bvh_node(const std::vector<shared_ptr<hittable>>& src_objects,
             left = right = objects[start];
         }else if(object_span == 2){
             if(comparator(objects[start],objects[start + 1])){
-                left = objects[start];
-                right = objects[start];
+                left = objects[start];  
+                right = objects[start + 1];
             }else{
-                left = objects[start+1];
+                left = objects[start + 1];
                 right = objects[start];
             }
         

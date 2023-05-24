@@ -16,8 +16,6 @@
 #include "triangle.h"
 #include "material.h"
 #include "rtweekend.h"
-#include "triangle.h"
-#include "bvh.h"
 
 
 
@@ -90,6 +88,7 @@ class triangle_mesh : public hittable{
 
                         int t_left = ( (t - 1 * winding) % (int)verts_idx.size() + (int)verts_idx.size() ) % (int)verts_idx.size();
                         int t_right = ( (t + 1 * winding) % (int)verts_idx.size() + (int)verts_idx.size() ) % (int)verts_idx.size();
+                        
 
                         while((int)verts_idx.size() > 3){
                             // confirm that three points form an 'ear'
@@ -104,8 +103,18 @@ class triangle_mesh : public hittable{
                                     }
                                 }
                                 if(no_intersection){
-                                    tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
+                                    triangles_verts_idx.push_back(verts_idx[t]);   
+                                    triangles_verts_idx.push_back(verts_idx[t_right]);
+                                    triangles_verts_idx.push_back(verts_idx[t_left]);
+                                    
+                                    triangles_uvs_idx.push_back(uvs_idx[t]);
+                                    triangles_uvs_idx.push_back(uvs_idx[t_right]);
+                                    triangles_uvs_idx.push_back(uvs_idx[t_left]);
 
+                                    triangles_normals_idx.push_back(normals_idx[t]);
+                                    triangles_normals_idx.push_back(normals_idx[t_right]);
+                                    triangles_normals_idx.push_back(normals_idx[t_left]);
+                                    
                                     // sanitize indices 
                                     verts_idx.erase(verts_idx.begin() + t);
                                     uvs_idx.erase(uvs_idx.begin() + t);
@@ -125,10 +134,17 @@ class triangle_mesh : public hittable{
                             t_right = ( (t + 1 * winding) % (int)verts_idx.size() + (int)verts_idx.size() ) % (int)verts_idx.size();
                         }
                         // 
-                        tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
-                        verts_idx.clear();
-                        uvs_idx.clear();
-                        normals_idx.clear();
+                        std::reverse(verts_idx.begin(),verts_idx.end());
+                        for(int i = 0; i < 3; i++){
+                            triangles_verts_idx.push_back(verts_idx.back());
+                            verts_idx.pop_back();
+                            
+                            triangles_uvs_idx.push_back(uvs_idx.back());
+                            uvs_idx.pop_back();
+
+                            triangles_normals_idx.push_back(normals_idx.back());
+                            normals_idx.pop_back();
+                        }
                     
 
                     }
@@ -140,10 +156,6 @@ class triangle_mesh : public hittable{
                 std::cerr<<"There was a problem with reading the mesh file.";
                 file.close();
             }
-
-            std::cerr<<"Mesh "<< filename <<" initialized."<<std::endl;
-            mesh_bvh = make_shared<bvh_node>(tris, (size_t)0, tris.size(), 0, infinity);
-
 
 
         }
@@ -164,12 +176,14 @@ class triangle_mesh : public hittable{
 
 
     public:
-
         std::vector<vec3> verts;
         std::vector<vec3> normals;
-        std::vector<vec2> uvs;
-        std::vector<shared_ptr<hittable>> tris; 
-        shared_ptr<bvh_node> mesh_bvh;
+        std::vector<vec3> uvs;
+
+        std::vector<int> triangles_verts_idx;
+        std::vector<int> triangles_uvs_idx;
+        std::vector<int> triangles_normals_idx;
+
         shared_ptr<material> mat_ptr; 
 
         const char delimit = ' ';
@@ -194,19 +208,15 @@ class triangle_mesh : public hittable{
 
 // at the moment is copy of hittable_list hit func.
 bool triangle_mesh::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
-    
-    return mesh_bvh->hit(r, t_min, t_max, rec);
-    // bool hit_anything = false;
-    // double closest_so_far = t_max;
-    
-    // for(const auto& tri: tris){
-    //     if(tri->hit(r, t_min, closest_so_far, rec)){
-    //         hit_anything = true;
-    //         closest_so_far = rec.t;
-    //     }
-    // }
-
-    // return hit_anything;
+    bool hit_anything = false;
+    double closest_so_far = t_max;
+    for(int i = 0; i < triangles_verts_idx.size()/3; i++){
+        if(triangle_hit(verts[triangles_verts_idx[3 * i]], verts[triangles_verts_idx[3 * i + 1]], verts[triangles_verts_idx[3 * i + 2]], vtt0, vtt1, vtt2, normals[triangles_normals_idx[3 * i]],r, t_min, closest_so_far, rec)){
+            hit_anything = true;
+            closest_so_far = rec.t;
+        }
+    }
+    return hit_anything;
 
 }
 
@@ -290,8 +300,8 @@ bool triangle_mesh::is_ear(const vec3& v0, const vec3 &v1, const vec3 &v2, vec3 
 
 }
 
+// to be implemented
 bool triangle_mesh::bounding_box(double time0, double time1, aabb& output_box) const{
-    mesh_bvh->bounding_box(time0, time1, output_box);
     return true;
 }
 

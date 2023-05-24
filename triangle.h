@@ -15,17 +15,17 @@ class triangle : public hittable {
         triangle(){}
 
         // normal computed using edges
-        triangle(const vec3& vert0, const vec3& vert1, const vec3& vert2, 
-        shared_ptr<material> m, const bool dface,
-        const vec2& u_offset, const vec2& v_offset, const vec2& w_offset) : 
+        triangle(const vec3& vert0, const vec3& vert1, const vec3& vert2,
+        const vec2& u_offset, const vec2& v_offset, const vec2& w_offset, 
+        shared_ptr<material> m, const bool dface) : 
         v0(vert0), v1(vert1), v2(vert2), 
         vt0(v_offset), vt1(u_offset), vt2(w_offset),
         doubleface(dface), normal(cross(v1 - v0, v2 - v0)), mat_ptr(m){};
         
         // normal precomputed and passed as parameter
         triangle(const vec3& vert0, const vec3& vert1, const vec3& vert2,
-        const point3& n, shared_ptr<material> m, const bool dface,
-        const vec2& u_offset, const vec2& v_offset, const vec2& w_offset) : 
+        const vec2& u_offset, const vec2& v_offset, const vec2& w_offset,
+        const point3& n, shared_ptr<material> m, const bool dface) : 
         v0(vert0), v1(vert1), v2(vert2), 
         vt0(v_offset), vt1(u_offset), vt2(w_offset),
         doubleface(dface), normal(n), mat_ptr(m){};
@@ -57,12 +57,12 @@ class triangle : public hittable {
 
         virtual bool hit(const ray& r, double t_min, double t_max, hit_record& rec) const override;
         
-
+        
         virtual bool bounding_box(double time0, double time1, aabb& output_rect) const override {
-            // output_rect = aabb(point3(0,0,0), point3(0,0,0));
             for(int k = 0; k < 3; k++){
+                // include padding on all axis to treat case of triangle normal colinearity w/ x,y or z 
                 output_rect.minimum.e[k] = fmin(fmin(v0[k],v1[k]),v2[k]);
-                output_rect.maximum.e[k] = fmax(fmax(v0[k],v1[k]),v2[k]);
+                output_rect.maximum.e[k] = fmax(fmax(v0[k],v1[k]),v2[k]) + 0.0001;
             }
             
             return true;

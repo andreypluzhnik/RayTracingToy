@@ -98,7 +98,7 @@ hittable_list textured_triangle_mesh_cornell_box(){
     shared_ptr<hittable> cube_mesh = make_shared<triangle_mesh>("icosphere.obj", mesh_mat,-1); 
     cube_mesh = make_shared<scale>(cube_mesh, 60);
     cube_mesh = make_shared<rotate_y>(cube_mesh, 105);
-    cube_mesh = make_shared<translate>(cube_mesh, vec3(315, 150, 350));
+    cube_mesh = make_shared<translate>(cube_mesh, vec3(315, 150, 280));
     objects.add(cube_mesh);
     
 
@@ -356,9 +356,9 @@ int main(){
     auto aspect_ratio = 16.0 / 9.0;
     int image_width = 600; // 3840
     int image_height = static_cast<int>(image_width / aspect_ratio);
-    int samples_per_pixel = 100;
+    int samples_per_pixel = 80;
     int sqrt_ssp = (int)sqrt(samples_per_pixel);
-    int max_depth = 50;
+    int max_depth = 15;
 
     //world
     hittable_list world;
