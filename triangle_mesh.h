@@ -11,6 +11,7 @@
 #include <list>
 #include <algorithm>
 #include <iostream>
+#include <unordered_map>
 
 #include "ray.h"
 #include "triangle.h"
@@ -31,8 +32,11 @@ class triangle_mesh : public hittable{
             std::vector<int> verts_idx;
             std::vector<int> normals_idx;
             std::vector<int> uvs_idx;
-        
-            try{    
+            
+            try{
+                /**
+                 * Parse .obj file
+                 */
                 file.open(filename);
                 if (file.fail()) throw;
                 std::string line = "";   
@@ -48,13 +52,11 @@ class triangle_mesh : public hittable{
                     if(buffer.compare("vt") == 0){
                         vec2 uv;
                         iss >> uv[0] >> uv[1];
-
+                        uvs.push_back(uv);
                     }else if(buffer.compare("vn") == 0){
                         vec3 normal;
                         iss >> normal[0] >> normal[1] >> normal[2];
                         normals.push_back(normal);
-                        
-
                     }else if(buffer.compare("v") == 0){
                         vec3 vert;
                         iss >> vert[0] >> vert[1] >> vert[2];
@@ -104,7 +106,8 @@ class triangle_mesh : public hittable{
                                     }
                                 }
                                 if(no_intersection){
-                                    tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
+                                    tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]],
+                                     uvs[uvs_idx[t]], uvs[uvs_idx[t_right]], uvs[uvs_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
 
                                     // sanitize indices 
                                     verts_idx.erase(verts_idx.begin() + t);
@@ -125,7 +128,8 @@ class triangle_mesh : public hittable{
                             t_right = ( (t + 1 * winding) % (int)verts_idx.size() + (int)verts_idx.size() ) % (int)verts_idx.size();
                         }
                         // 
-                        tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
+                        tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]], 
+                        uvs[uvs_idx[t]], uvs[uvs_idx[t_right]], uvs[uvs_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
                         verts_idx.clear();
                         uvs_idx.clear();
                         normals_idx.clear();
@@ -135,9 +139,10 @@ class triangle_mesh : public hittable{
 
 
                 }
+                file.close();
 
             }catch(...){
-                std::cerr<<"There was a problem with reading the mesh file.";
+                std::cerr<<"There was a problem with reading the .obj file.";
                 file.close();
             }
 

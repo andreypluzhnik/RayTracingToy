@@ -83,7 +83,7 @@ hittable_list textured_triangle_mesh_cornell_box(){
     auto red = make_shared<lambertian>(color(0.65, 0.05, 0.05));
     auto white = make_shared<lambertian>(color(0.73, 0.73, 0.73));
     auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
-    auto light = make_shared<diffuse_light>(color(15, 15, 15));
+    auto light = make_shared<diffuse_light>(color(20, 20, 20));
 
     objects.add(make_shared<yz_rect>(0, 555, 0, 555, 555, green));
     objects.add(make_shared<yz_rect>(0,555, 0, 555, 0, red));
@@ -94,11 +94,12 @@ hittable_list textured_triangle_mesh_cornell_box(){
 
     // /* Textured Triangle Mesh*/
     auto mesh_tex = make_shared<barycentric_intrp>(color(1,0,0), color(0,1,0), color(0,0,1));
+    // auto mesh_tex = make_shared<image_texture>("Pepsi_2023.png");
     auto mesh_mat = make_shared<lambertian>(mesh_tex);
-    shared_ptr<hittable> cube_mesh = make_shared<triangle_mesh>("icosphere.obj", mesh_mat,-1); 
-    cube_mesh = make_shared<scale>(cube_mesh, 60);
-    cube_mesh = make_shared<rotate_y>(cube_mesh, 105);
-    cube_mesh = make_shared<translate>(cube_mesh, vec3(315, 150, 280));
+    shared_ptr<hittable> cube_mesh = make_shared<triangle_mesh>("bepsi.obj", mesh_mat,-1); 
+    cube_mesh = make_shared<scale>(cube_mesh, 80);
+    cube_mesh = make_shared<rotate_y>(cube_mesh, 12);
+    cube_mesh = make_shared<translate>(cube_mesh, vec3(315, 200, 170));
     objects.add(cube_mesh);
     
 
