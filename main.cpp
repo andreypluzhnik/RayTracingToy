@@ -6,7 +6,6 @@
 #include "sphere.h"
 #include "camera.h"
 #include "vec3.h"
-#include "material.h"
 #include "checkerboard.h"
 #include "moving_sphere.h"
 #include "aarect.h"
@@ -15,31 +14,155 @@
 #include "torus.h"
 #include "triangle.h"
 #include "triangle_mesh.h"
+#include "pdf.h"
 
+ 
+// implement multiple importance sampling 
 
-
-color ray_color(const ray& r, const color& background , const hittable& world, int depth){ // would be interesting to simulate attenuative reflection
+color ray_color(const ray& r, const color& background , const hittable& world, shared_ptr<hittable>& lights, int depth){ 
     hit_record rec;
     
-    if(depth <= 0){
+    if(depth <= 0)
         return color(0,0,0);
+
+    if(!world.hit(r, 0.001, infinity, rec))
+        return background;
+
+    scatter_record srec;
+    color emitted = rec.mat_ptr->emitted(r, rec, rec.u, rec.v, rec.p);
+    
+    if (!rec.mat_ptr->scatter(r, rec, srec))
+        return emitted;
+    
+    if(srec.skip_pdf) {
+        return srec.attenuation * ray_color(srec.skip_pdf_ray, background, world, lights, depth - 1);
     }
 
-    if(!world.hit(r,0.001, infinity, rec))
-        return background;
+
+    auto lights_pdf = make_shared<hittable_pdf>(lights, rec.p);
+    mixture_pdf mix(lights_pdf, srec.pdf_ptr);
+
+    ray scattered = ray(rec.p, mix.generate(), r.time());
+    auto pdf_val = mix.value(scattered.direction());
+    // pdf_val = 0.5 * (brdf->value(scattered.direction()) + lights_pdf->value(scattered.direction())); 
     
-    ray scattered; 
-    color attenuation;
-    color emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+    // mixture_pdf mpdf(brdf, lights_pdf);
+    
+    // scattered = ray(rec.p, mpdf.generate(), r.time());
+    // pdf_val = mpdf.value(scattered.direction());
+    
+    return emitted + 
+           srec.attenuation * ray_color(scattered, background, world, lights, depth - 1) * rec.mat_ptr->scattering_pdf(r, rec, scattered)/ pdf_val;
+ // attempt at two ray samping
+    // // send out two rays, one that samples BRDF, one that samples the light only on the first bounce
+    // // hit_record rec_brdf, rec_light;
+    // hit_record rec;
 
 
-    if(!rec.mat_ptr->scatter(r, rec, attenuation, scattered))
-        return emitted;
+    // if(depth <= 0)
+    //     return color(0,0,0);
+    
+
+    // if(!world.hit(r,0.001, infinity, rec))
+    //     return background;
+    
+
+
+    // double radiance;
+    // ray scattered_brdf;
+    // ray scattered_lights; 
+    // color attenuation;
+    // color emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+    // double brdf_value, lights_value;
+    // if(!rec.mat_ptr->scatter(r, rec, attenuation, scattered_brdf, brdf_value))
+    //     return emitted;
+
+
+    // hittable_pdf light_pdf(lights, rec.p);
+    // scattered_lights = ray(rec.p, light_pdf.generate(), r.time());
+    // lights_value = light_pdf.value(scattered_lights.direction());
+   
+   
+    // if(lights_value == 0){
+    //     return emitted + attenuation * rec.mat_ptr->scattering_pdf(r, rec, scattered_brdf) * ray_color(scattered_brdf, background, world, lights, depth - 1) / brdf_value;
+    // }
+
+    // return emitted + attenuation * (rec.mat_ptr->scattering_pdf(r, rec, scattered_brdf) * ray_color(scattered_brdf, background, world, lights, depth - 1) +
+    //                                 rec.mat_ptr->scattering_pdf(r, rec, scattered_lights) * ray_color(scattered_lights, background, world, lights, depth - 1) ) / (brdf_value + lights_value);
+
+
+//    scattered = ray(rec.p, brdf_pdf.generate(), r.time());
+   
+
+    // multiple sampling equation
+    
+    // light sampling
+    // construct a pdf from all light sources, then sample. PDF is parameterized by solid angle
+    /*
+    simple version:
+    1) mat brightness
+    2) area of light source
+    
+    better scene convergence:
+    3) solid angle on unit sphere
+
+    PS Code
+    
+    mixture_density md
+    for i in lights:
+        pdf_of_light = i.get_pdf
+        surface_area = i.get_surface_area
+        md.add(pdf_of_light, surface_area)
+
+    direction = md.generate()
+    &
+        vec3 generate():
+            each pdf has a continuous interval within 0 to 1, interval size determined by area
+            roll number, pick pdf assigned to the range rolled number falls into
+            
+            picked_pdf
+            return picked_pdf.generate()
+
+
+    &
+    
+    val = md.value(direction)
+    &
+        vec3 value(direction)
+
+            
+            return picked_pdf.value() * interval
+
+    &
+    
+    */
+
+
+
+}
+
+// color ray_color(const ray& r, const color& background , const hittable& world, int depth){ 
+//     hit_record rec;
+    
+//     if(depth <= 0){
+//         return color(0,0,0);
+//     }
+
+//     if(!world.hit(r,0.001, infinity, rec))
+//         return background;
+    
+//     ray scattered; 
+//     color attenuation;
+//     color emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+    
+
+//     if(!rec.mat_ptr->scatter(r, rec, attenuation, scattered))
+//         return emitted;
   
 
    
-    return emitted + attenuation * ray_color(scattered, background, world, depth - 1);
-}
+//     return emitted + attenuation * ray_color(scattered, background, world, depth - 1);
+// }
 
 hittable_list two_spheres(){
     hittable_list objects;
@@ -77,34 +200,148 @@ hittable_list marble_board(){
 
 }
 
+hittable_list glossy_sphere_cornell_box(shared_ptr<hittable>& lights){
+    hittable_list objects;
+    auto red = make_shared<lambertian>(color(0.65, 0.05, 0.05));
+    auto white = make_shared<lambertian>(color(0.73, 0.73, 0.73));
+    auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
+    auto light = make_shared<diffuse_light>(20 * color(1, 0.9, 0.7));
+
+    // glossy sphere
+    auto glossy_yellow = make_shared<glossy>(color(0.9, 0.9, 0.5), color(0.9, 0.9, 0.9), 0.1, 0.2);
+    
+    // color pastel_green = color(0.76, 0.88,  0.76);
+    lights = make_shared<xz_rect>(113, 443, 127, 432, 554, light);
+
+
+    objects.add(make_shared<yz_rect>(0, 555, 0, 555, 555, green));
+    objects.add(make_shared<yz_rect>(0,555, 0, 555, 0, red));
+    objects.add(make_shared<flip_face>(lights));
+    objects.add(make_shared<xz_rect>(0, 555, 0, 555, 555, white));
+    objects.add(make_shared<xz_rect>(0, 555, 0, 555, 0, white));
+    objects.add(make_shared<xy_rect>(0, 555, 0, 555, 555, white));
+    
+    // add sphere
+    objects.add(make_shared<sphere>(point3(277,100,300), 100, glossy_yellow));
+
+    return objects;
+
+
+}
+
+hittable_list gloss_pallette_cornell_box(shared_ptr<hittable>& lights){
+    hittable_list objects;
+    auto red = make_shared<lambertian>(color(0.65, 0.05, 0.05));
+    auto white = make_shared<lambertian>(color(0.73, 0.73, 0.73));
+    auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
+    auto light = make_shared<diffuse_light>(12 * color(1, 0.9, 0.7));
+
+    
+    
+    // color pastel_green = color(0.76, 0.88,  0.76);
+    lights = make_shared<xz_rect>(113, 443, 127, 432, 554, light);
+
+
+    objects.add(make_shared<yz_rect>(0, 555, 0, 555, 555, green));
+    objects.add(make_shared<yz_rect>(0,555, 0, 555, 0, red));
+    objects.add(make_shared<flip_face>(lights));
+    objects.add(make_shared<xz_rect>(0, 555, 0, 555, 555, white));
+    objects.add(make_shared<xz_rect>(0, 555, 0, 555, 0, white));
+    objects.add(make_shared<xy_rect>(0, 555, 0, 555, 555, white));
+
+    double roughness = 0.01;
+    double index_ref = 1.3;
+    color c = color(0.31, 0.26, 0.95);
+
+    auto blue_glass = make_shared<dielectric>(index_ref, roughness, c);
+    objects.add(make_shared<sphere>(point3(300, 300, 300), 100, blue_glass));
+    // // glossy sphere grid
+    // double spec_chance_arr[] = {0.05, 0.15, 0.35, 0.47, 0.63, 0.95};
+    // for(int x = 0; x < 5; x++){
+    //     for(int y = 0; y < 5; y++){
+    //         auto roughness = x / 8.0;
+    //         auto spec_chance = spec_chance_arr[y];
+    //         auto glossy_yellow = make_shared<glossy>(color(0.9, 0.9, 0.5), color(0.9, 0.9, 0.7), roughness, spec_chance);
+    //         // add sphere
+    //         objects.add(make_shared<sphere>(point3(45 + x * 116.25, 45 + y * 70 , 190 + 50 * y), 35, glossy_yellow));
+
+    //     }
+    // }
+
+
+    return objects;
+
+
+}
+
+
+
+hittable_list plato_bust_cornell_box(){
+    hittable_list objects;
+
+    auto red = make_shared<lambertian>(color(0.65, 0.05, 0.05));
+    auto white = make_shared<lambertian>(color(0.73, 0.73, 0.73));
+    auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
+    auto light = make_shared<diffuse_light>(color(15, 15, 15));
+
+    objects.add(make_shared<yz_rect>(0, 555, 0, 555, 555, green));
+    objects.add(make_shared<yz_rect>(0,555, 0, 555, 0, red));
+    objects.add(make_shared<xz_rect>(113, 443, 127, 432, 554, light));
+    objects.add(make_shared<xz_rect>(0, 555, 0, 555, 555, white));
+    objects.add(make_shared<xz_rect>(0, 555, 0, 555, 0, white));
+    objects.add(make_shared<xy_rect>(0, 555, 0, 555, 555, white));
+
+    /* Textured Triangle Mesh*/
+    auto mesh_tex = make_shared<image_texture>("plato.jpg");
+    auto mesh_mat = make_shared<lambertian>(mesh_tex);
+    shared_ptr<hittable> mesh = make_shared<triangle_mesh>("plato.obj", mesh_mat,-1); 
+    mesh = make_shared<rotate_y>(mesh,180);
+    // mesh = make_shared<rotate_z>(mesh,90);
+    // mesh = make_shared<rotate_y>(mesh,-90);
+    mesh = make_shared<scale>(mesh, 15);
+
+
+    mesh = make_shared<translate>(mesh, vec3(315, 150, 320));
+    objects.add(mesh);
+    
+
+
+    return objects;
+}
+
+
 hittable_list textured_triangle_mesh_cornell_box(){
     hittable_list objects;
 
     auto red = make_shared<lambertian>(color(0.65, 0.05, 0.05));
     auto white = make_shared<lambertian>(color(0.73, 0.73, 0.73));
     auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
-    auto light = make_shared<diffuse_light>(color(20, 20, 20));
+    auto light = make_shared<diffuse_light>(color(15, 15, 15));
 
     objects.add(make_shared<yz_rect>(0, 555, 0, 555, 555, green));
     objects.add(make_shared<yz_rect>(0,555, 0, 555, 0, red));
-    objects.add(make_shared<xz_rect>(213, 343, 227, 332, 554, light));
+    objects.add(make_shared<xz_rect>(113, 443, 127, 432, 554, light));
     objects.add(make_shared<xz_rect>(0, 555, 0, 555, 555, white));
     objects.add(make_shared<xz_rect>(0, 555, 0, 555, 0, white));
     objects.add(make_shared<xy_rect>(0, 555, 0, 555, 555, white));
 
-    // /* Textured Triangle Mesh*/
-    auto mesh_tex = make_shared<barycentric_intrp>(color(1,0,0), color(0,1,0), color(0,0,1));
-    // auto mesh_tex = make_shared<image_texture>("Pepsi_2023.png");
+    /* Textured Triangle Mesh*/
+    // auto mesh_tex = make_shared<barycentric_intrp>(color(1,0,0), color(0,1,0), color(0,0,1));
+    auto mesh_tex = make_shared<image_texture>("Pepsi_2023.png");
     auto mesh_mat = make_shared<lambertian>(mesh_tex);
-    shared_ptr<hittable> cube_mesh = make_shared<triangle_mesh>("bepsi.obj", mesh_mat,-1); 
-    cube_mesh = make_shared<scale>(cube_mesh, 80);
-    cube_mesh = make_shared<rotate_y>(cube_mesh, 12);
-    cube_mesh = make_shared<translate>(cube_mesh, vec3(315, 200, 170));
-    objects.add(cube_mesh);
+    shared_ptr<hittable> mesh = make_shared<triangle_mesh>("bepsi.obj", mesh_mat,-1); 
+    mesh = make_shared<rotate_y>(mesh,90);
+    mesh = make_shared<rotate_z>(mesh,90);
+    mesh = make_shared<rotate_y>(mesh,-90);
+    mesh = make_shared<scale>(mesh, 90);
+
+
+    mesh = make_shared<translate>(mesh, vec3(315, 150, 320));
+    objects.add(mesh);
     
 
 
-    return hittable_list(objects);
+    return objects;
 }
 
 hittable_list textured_triangle_cornell_box(){
@@ -130,7 +367,7 @@ hittable_list textured_triangle_cornell_box(){
     shared_ptr<hittable> equilateral = make_shared<triangle>(point3(0, 0, 0), point3(50, 100 * sqrt(3) / 2.0, 0), point3(100, 0, 0), triangle_mat, true);
     equilateral = make_shared<scale>(equilateral, 2);
     equilateral = make_shared<rotate_y>(equilateral, 15);
-    equilateral = make_shared<translate>(equilateral, vec3(265, 20, 390));
+    equilateral = make_shared<translate>(equilateral, vec3(265, 20, 430));
     objects.add(equilateral);
     
 
@@ -169,7 +406,7 @@ hittable_list simple_light(){
     return objects;
 }
 
-hittable_list cornell_box(){
+hittable_list cornell_box(shared_ptr<hittable>& lights){
     hittable_list objects;
 
     auto red = make_shared<lambertian>(color(0.65, 0.05, 0.05));
@@ -177,9 +414,10 @@ hittable_list cornell_box(){
     auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
     auto light = make_shared<diffuse_light>(color(15, 15, 15));
 
+    lights = make_shared<xz_rect>(213, 343, 227, 332, 554, light);
     objects.add(make_shared<yz_rect>(0, 555, 0, 555, 555, green));
     objects.add(make_shared<yz_rect>(0,555, 0, 555, 0, red));
-    objects.add(make_shared<xz_rect>(213, 343, 227, 332, 554, light));
+    objects.add(make_shared<flip_face>(lights));
     objects.add(make_shared<xz_rect>(0, 555, 0, 555, 555, white));
     objects.add(make_shared<xz_rect>(0, 555, 0, 555, 0, white));
     objects.add(make_shared<xy_rect>(0, 555, 0, 555, 555, white));
@@ -194,6 +432,7 @@ hittable_list cornell_box(){
     box2 = make_shared<translate>(box2, vec3(130,0,65));
     objects.add(box2);
 
+    
     return objects;
 
 
@@ -359,17 +598,22 @@ int main(){
     int image_height = static_cast<int>(image_width / aspect_ratio);
     int samples_per_pixel = 80;
     int sqrt_ssp = (int)sqrt(samples_per_pixel);
-    int max_depth = 15;
+    int max_depth = 5;
 
     //world
     hittable_list world;
+    //lights
+    shared_ptr<hittable> lights;
+
     point3 lookfrom;
     point3 lookat;
     auto vfov = 40.0;
     auto aperture = 0.0;
     color background(0,0,0);
 
-    switch(12){
+
+
+    switch(15){
         case 1:
             world = random_scene();
             background = color(0.7,0.8,1);
@@ -415,17 +659,17 @@ int main(){
             break;
 
         case 7:
-            world = cornell_box();
+            world = cornell_box(lights);
             aspect_ratio = 1.0;
             image_width = 600;
             image_height = static_cast<int>(image_width / aspect_ratio);
-            samples_per_pixel = 5000;
+            samples_per_pixel = 10;
             sqrt_ssp = (int)sqrt(samples_per_pixel);
             background = color(0,0,0);
             lookfrom = point3(278, 278, -800);
             lookat = point3(278, 278, 0);
             vfov = 40.0;
-            max_depth = 150;
+            max_depth = 50;
             break;
 
         case 8:
@@ -457,7 +701,7 @@ int main(){
             aspect_ratio = 1.0;
             image_width = 600;
             image_height = static_cast<int>(image_width / aspect_ratio);
-            samples_per_pixel = 100;
+            samples_per_pixel = 10;
             sqrt_ssp = (int)sqrt(samples_per_pixel);
             lookfrom = point3(278,278,-800);
             lookat = point3(278,278,0);
@@ -476,18 +720,60 @@ int main(){
             vfov = 40.0;
             break;
         
-        default:
         case 12:
             world = textured_triangle_mesh_cornell_box();
             aspect_ratio = 1.0;
             image_width = 600;
             image_height = static_cast<int>(image_width / aspect_ratio);
-            samples_per_pixel = 100;
+            samples_per_pixel = 700;
             sqrt_ssp = (int)sqrt(samples_per_pixel);
             lookfrom = point3(278,278,-800);
             lookat = point3(278,278,0);
             vfov = 40.0;
             break;
+        
+        case 13:
+            world = plato_bust_cornell_box();
+            aspect_ratio = 1.0;
+            image_width = 600;
+            image_height = static_cast<int>(image_width / aspect_ratio);
+            samples_per_pixel = 1000;
+            sqrt_ssp = (int)sqrt(samples_per_pixel);
+            lookfrom = point3(278,278,-800);
+            lookat = point3(278,278,0);
+            vfov = 40.0;
+            break;
+        
+        case 14:
+            world = glossy_sphere_cornell_box(lights);
+            aspect_ratio = 1.0;
+            image_width = 600;
+            image_height = static_cast<int>(image_width / aspect_ratio);
+            samples_per_pixel = 20;
+            sqrt_ssp = (int)sqrt(samples_per_pixel);
+            background = color(0,0,0);
+            lookfrom = point3(278, 278, -800);
+            lookat = point3(278, 278, 0);
+            vfov = 40.0;
+            max_depth = 50;
+            break;
+
+        default:
+        case 15:
+            world = gloss_pallette_cornell_box(lights);
+            aspect_ratio = 1.0;
+            image_width = 600;
+            image_height = static_cast<int>(image_width / aspect_ratio);
+            samples_per_pixel = 100;
+            sqrt_ssp = (int)sqrt(samples_per_pixel);
+            background = color(0,0,0);
+            lookfrom = point3(278, 278, -800);
+            lookat = point3(278, 278, 0);
+            vfov = 40.0;
+            max_depth = 20;
+            break;
+
+
 
 
 
@@ -501,7 +787,6 @@ int main(){
     vec3 vup(0,1,0);
 
     camera cam(lookfrom, lookat, vup, vfov, aspect_ratio, aperture, dist_to_focus, 0.0, 1.0);
-
 
     std::cout<<"P3\n"<<image_width<<' '<<image_height<<'\n'<<255<<'\n';
     for(int j = image_height - 1; j>=0; j--){
@@ -524,7 +809,7 @@ int main(){
                     v += 1.0/(sqrt_ssp * (image_height - 1));
                 
                     ray r = cam.get_ray(u,v);
-                    pixel_color += ray_color(r, background, world, max_depth);
+                    pixel_color += ray_color(r, background, world, lights, max_depth);
                 }
                 v = double(j) / (image_height - 1);
             }
@@ -537,4 +822,3 @@ int main(){
 
 
 }
-

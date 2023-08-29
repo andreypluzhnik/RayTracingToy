@@ -10,14 +10,6 @@ using std::shared_ptr;
 using std::make_shared;
 
 
-
-/*
-Why shared_ptr?
-
-
-
-*/
-
 class hittable_list : public hittable {
     public:
         hittable_list(){}

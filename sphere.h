@@ -36,6 +36,7 @@ class sphere : public hittable {
 };
 
 bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
+
     point3 op = r.origin() - center;
     double c = dot(op,op) - radius * radius;
     double half_b = dot(r.direction(),op);
@@ -61,6 +62,7 @@ bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) cons
     get_sphere_uv(outward_normal, rec.u, rec.v);
     rec.mat_ptr = mat_ptr;
     
+
     return true;
 
 }
@@ -69,6 +71,11 @@ bool sphere::bounding_box(double time0, double time1, aabb& output_box) const{
     output_box  = aabb(center - point3(radius,radius,radius), center + point3(radius,radius,radius));  
     return true;
 }
+
+
+
+
+
 
 
 

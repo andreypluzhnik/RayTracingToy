@@ -23,6 +23,25 @@ class xy_rect : public hittable {
             return true;
         }
 
+        virtual vec3 random(const point3& origin) const override{
+            vec3 o_prime = point3(random_double(x0,x1), random_double(y0, y1), k);
+            return o_prime - origin;
+        }
+
+        virtual double pdf_value(const point3& origin, const vec3& v) const override {
+            hit_record rec;
+            if(!this->hit(ray(origin, v), 0.001, infinity, rec)){
+                return 0;
+            }
+
+            double area = (x1 - x0) * (y1 - y0);
+            double dist_squared =  rec.t * rec.t * v.length_squared();             
+            double cosine = fabs(dot(v, rec.normal)) / v.length();
+
+            return dist_squared / (cosine * area);
+
+            
+        }        
 
     public:
         shared_ptr<material> mp;
@@ -41,12 +60,31 @@ class xz_rect : public hittable {
         virtual bool hit(const ray& r, double t_min, double t_max, hit_record& rec) const override;
 
         virtual bool bounding_box(double time0, double time1, aabb& output_box) const override {
-            // The bounding box must have non-zero width in each dimension, so pad the Z dimension
-            // in a small amount
+            // The bounding box must have non-zero width in each dimension, so pad the normal direction
+            // a small amount
 
             output_box = aabb(point3(x0, k - 0.0001, z0), point3(x1, k + 0.0001, z1));
             return true;
         }
+
+         virtual double pdf_value(const point3& origin, const vec3& v) const override {
+            hit_record rec;
+            if (!this->hit(ray(origin, v), 0.001, infinity, rec))
+                return 0;
+
+            auto area = (x1-x0)*(z1-z0);
+            auto distance_squared = rec.t * rec.t * v.length_squared();
+            auto cosine = fabs(dot(v, rec.normal) / v.length());
+
+            return distance_squared / (cosine * area);
+        }
+
+        virtual vec3 random(const point3& origin) const override {
+            auto random_point = point3(random_double(x0,x1), k, random_double(z0,z1));
+            return random_point - origin;
+        }
+
+
 
 
     
@@ -73,6 +111,24 @@ class yz_rect : public hittable {
 
             output_box = aabb(point3(k - 0.0001, y0, z0), point3(k + 0.0001, y1, z1));
             return true;
+        }
+
+        virtual vec3 random(const vec3& o) const override{
+            vec3 o_prime = vec3(k, random_double(y0,y1), random_double(z0,z1));
+            return o_prime - o;
+        }
+
+        virtual double value(const point3& origin, const vec3& v){
+            hit_record rec;
+            if(!this->hit(ray(origin, v), 0.001, infinity, rec)){
+                return false;
+            }
+
+            double area = (y1 - y0) * (z1 - z0);
+            double dist_squared =  rec.t * rec.t * v.length_squared();             
+            double cosine = fabs(dot(v, rec.normal)) / v.length();
+            return dist_squared / (cosine * area);
+            
         }
 
 

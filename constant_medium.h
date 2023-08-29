@@ -28,7 +28,7 @@ class constant_medium : public hittable{
 };
 
 /*
-Exerpt from ray tracing the next week:
+Exerpt from 'ray tracing the next week':
  The below code assumes that once a ray exits the constant medium boundary, 
  it will continue forever outside the boundary. Put another way, 
  it assumes that the boundary shape is convex. 
@@ -55,7 +55,7 @@ bool constant_medium::hit(const ray& r, double t_min, double t_max, hit_record& 
     // addendum: if the ray enters from the exterior, scattering is checked through all 'layers' of the surface
     
     rec2.t = -infinity;
-
+    
     while(true){
         if(!boundary->hit(r, rec2.t+0.0001, infinity, rec1) || !rec1.front_face){
             return false;

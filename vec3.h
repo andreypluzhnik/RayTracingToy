@@ -17,6 +17,10 @@ class vec3 {
         double y() const {return e[1];}
         double z() const {return e[2];}
 
+        double r() {return e[0];}
+        double g() const {return e[1];}
+        double b() const {return e[2];}
+
         vec3 operator-() const {return vec3(-e[0], -e[1], -e[2]); }
         double operator[](int i) const {return e[i];}
         double& operator[](int i) {return e[i];}
@@ -90,6 +94,10 @@ inline vec3 operator/(vec3 v, double t){
     return (1/t) * v;
 }
 
+inline vec3 operator^(const vec3& u, const vec3& v){
+    return vec3(pow(u.x(), v.x()), pow(u.y(), v.y()), pow(u.z(), v.z()));
+}
+
 
 inline double dot(const vec3 &u, const vec3 &v){
     return u.e[0] * v.e[0]
@@ -128,6 +136,20 @@ vec3 random_in_unit_sphere(){
 
 }
 
+
+vec3 random_cosine_direction(){
+    double r1 = random_double();
+    double r2 = random_double();
+
+    double x = cos(2 * pi * r1) * sqrt(r2);
+    double y = sin(2 * pi * r1) * sqrt(r2);
+    double z = sqrt(1 - r2);
+
+    return vec3(x,y,z);
+
+}
+
+
 vec3 random_unit_vector(){
     return unit_vector(random_in_unit_sphere());
 }
@@ -152,6 +174,14 @@ vec3 refract(const vec3& uv , const vec3& n, double ir_ratio){ // ir_ratio = ind
     return perp + par;
 }
 
+// linear interpolation between two 3d points
+vec3 mix(const vec3& x, const vec3& y, const vec3& a){
+    return x * a + y * (vec3(1,1,1) - a);
+}
+
+vec3 less_than(const vec3& v, float f){
+    return vec3(v.x() < f ? 1 : 0, v.y() < f ? 1 : 0, v.z() < f ? 1 : 0);
+}
 
 
 #endif

@@ -157,11 +157,11 @@ class image_texture : public texture {
             }
 
             u = clamp(u,0.0,1.0);
-            v = clamp(v,0.0,1.0);
-            // v = 1.0 - clamp(v, 0.0, 1.0);
+            // v = clamp(v,0.0,1.0);
+            v = 1.0 - clamp(v, 0.0, 1.0);
 
             auto i = static_cast<int>(u * width);
-            auto j = static_cast<int>(v * width);
+            auto j = static_cast<int>(v * height);
 
             if(i >= width) i = width - 1;
             if(j >= height) j = height - 1;
