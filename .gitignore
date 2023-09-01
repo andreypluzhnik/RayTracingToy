@@ -7,3 +7,4 @@
 *.obj
 obj_read_test.cpp
 root_test.cpp
+Resources/

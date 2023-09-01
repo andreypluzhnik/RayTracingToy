@@ -55,7 +55,8 @@ class triangle : public hittable {
         // normal computed using edges
         triangle(const vec3& vert0, const vec3& vert1, const vec3& vert2,
         shared_ptr<material> m, const bool dface) : 
-        v0(vert0), v1(vert1), v2(vert2), 
+        v0(vert0), v1(vert1), v2(vert2),
+        vt0(vec2(1.0, 0)), vt1(vec2(0, 1.0)), vt2(vec2(0, 0)),  
         doubleface(dface), mat_ptr(m)
         {
             vec3 normal = cross(v1 - v0, v2 - v0);

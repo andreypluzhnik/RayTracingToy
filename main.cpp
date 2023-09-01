@@ -310,7 +310,7 @@ hittable_list plato_bust_cornell_box(){
 }
 
 
-hittable_list textured_triangle_mesh_cornell_box(){
+hittable_list textured_triangle_mesh_cornell_box(shared_ptr<hittable>& lights){
     hittable_list objects;
 
     auto red = make_shared<lambertian>(color(0.65, 0.05, 0.05));
@@ -318,9 +318,12 @@ hittable_list textured_triangle_mesh_cornell_box(){
     auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
     auto light = make_shared<diffuse_light>(color(15, 15, 15));
 
+
+    lights = make_shared<xz_rect>(113, 443, 127, 432, 554, light);
+
     objects.add(make_shared<yz_rect>(0, 555, 0, 555, 555, green));
     objects.add(make_shared<yz_rect>(0,555, 0, 555, 0, red));
-    objects.add(make_shared<xz_rect>(113, 443, 127, 432, 554, light));
+    objects.add(make_shared<flip_face>(lights));
     objects.add(make_shared<xz_rect>(0, 555, 0, 555, 555, white));
     objects.add(make_shared<xz_rect>(0, 555, 0, 555, 0, white));
     objects.add(make_shared<xy_rect>(0, 555, 0, 555, 555, white));
@@ -538,6 +541,42 @@ hittable_list smoke_box_and_torus(){
 
 }
 
+hittable_list utah_teapot(shared_ptr<hittable>& lights){
+    hittable_list objects;
+    
+
+    auto red = make_shared<lambertian>(color(0.65, 0.05, 0.05));
+    auto white = make_shared<lambertian>(color(0.73, 0.73, 0.73));
+    auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
+    auto light = make_shared<diffuse_light>(color(15, 15, 15));
+
+    lights = make_shared<xz_rect>(113, 443, 127, 432, 554, light);
+    objects.add(make_shared<yz_rect>(0, 555, 0, 555, 555, green));
+    objects.add(make_shared<yz_rect>(0,555, 0, 555, 0, red));
+    objects.add(make_shared<flip_face>(lights));
+    objects.add(make_shared<xz_rect>(0, 555, 0, 555, 555, white));
+    objects.add(make_shared<xz_rect>(0, 555, 0, 555, 0, white));
+    objects.add(make_shared<xy_rect>(0, 555, 0, 555, 555, white));
+
+    
+     /* Textured Triangle Mesh*/
+    auto mesh_mat = make_shared<glossy>(color(0.96, 0.36, 0.03), color(0.96, 0.36, 0.26), 0.1, 0.15);
+    // auto mesh_mat = make_shared<lambertian>(mesh_tex);
+    shared_ptr<hittable> mesh = make_shared<triangle_mesh>("teapot.obj", mesh_mat,-1); 
+    mesh = make_shared<rotate_y>(mesh,45);
+    mesh = make_shared<rotate_z>(mesh,45);
+    // mesh = make_shared<rotate_y>(mesh,-90);
+    mesh = make_shared<scale>(mesh, 50);
+
+
+    mesh = make_shared<translate>(mesh, vec3(315, 100, 240));
+    objects.add(mesh);
+
+    return objects;
+
+
+}
+
 hittable_list random_scene(){
     hittable_list world;
     
@@ -613,7 +652,7 @@ int main(){
 
 
 
-    switch(15){
+    switch(16){
         case 1:
             world = random_scene();
             background = color(0.7,0.8,1);
@@ -721,11 +760,11 @@ int main(){
             break;
         
         case 12:
-            world = textured_triangle_mesh_cornell_box();
+            world = textured_triangle_mesh_cornell_box(lights);
             aspect_ratio = 1.0;
             image_width = 600;
             image_height = static_cast<int>(image_width / aspect_ratio);
-            samples_per_pixel = 700;
+            samples_per_pixel = 30;
             sqrt_ssp = (int)sqrt(samples_per_pixel);
             lookfrom = point3(278,278,-800);
             lookat = point3(278,278,0);
@@ -758,7 +797,6 @@ int main(){
             max_depth = 50;
             break;
 
-        default:
         case 15:
             world = gloss_pallette_cornell_box(lights);
             aspect_ratio = 1.0;
@@ -773,6 +811,20 @@ int main(){
             max_depth = 20;
             break;
 
+        default:
+        case 16:
+            world = utah_teapot(lights);
+            aspect_ratio = 1.0;
+            image_width = 600;
+            image_height = static_cast<int>(image_width / aspect_ratio);
+            samples_per_pixel = 100;
+            sqrt_ssp = (int)sqrt(samples_per_pixel);
+            background = color(0,0,0);
+            lookfrom = point3(278, 278, -800);
+            lookat = point3(278, 278, 0);
+            vfov = 40.0;
+            max_depth = 20;
+            break;
 
 
 

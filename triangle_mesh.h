@@ -20,6 +20,28 @@
 #include "bvh.h"
 
 
+// .obj reference  https://en.wikipedia.org/wiki/Wavefront_.obj_file
+// .obj vertices can be represented in one of the following formats:
+// vertex coordinates, uv_coordinates, and normal coordinates
+// vertex coordinates, uv coordinates
+// vertex coordinates, normal coordinates
+// vertex coordinates
+
+enum vertex_format{
+    V_UV_NORMAL = 7,
+    V_UV = 3,
+    V_NORMAL = 5,
+    V = 1
+
+};
+
+//this defines an integer code for each format
+enum vertex_info{
+    VERTEX = 1, 
+    UV = 2,
+    NORMAL = 4
+};
+
 
 class triangle_mesh : public hittable{
 
@@ -27,13 +49,11 @@ class triangle_mesh : public hittable{
         triangle_mesh(){}
         triangle_mesh(const char* filename, shared_ptr<material> m, int w) : mat_ptr(m), winding(w){
             
+
             std::ifstream file;
-            std::vector<int> verts_idx;
-            std::vector<int> normals_idx;
-            std::vector<int> uvs_idx;
 
+            try{   
 
-            try{    
                 file.open(filename);
                 if (file.fail()) throw;
                 std::string line = "";   
@@ -41,32 +61,33 @@ class triangle_mesh : public hittable{
                 std::string buffer;
                 float param;
 
+                vertex_format input_format_code = V;
+
+
                 while(getline(file, line)){
                     iss.clear();
                     iss.str(line);
                     iss >> buffer;
                     
                     if(buffer.compare("vt") == 0){
+                        input_format_code = static_cast<vertex_format>(input_format_code | UV);
                         vec2 uv;
                         iss >> uv[0] >> uv[1];
                         uvs.push_back(uv);
 
                     }else if(buffer.compare("vn") == 0){
+                        input_format_code =  static_cast<vertex_format>(input_format_code | NORMAL);
                         vec3 normal;
                         iss >> normal[0] >> normal[1] >> normal[2];
                         normals.push_back(normal);
                         
 
                     }else if(buffer.compare("v") == 0){
+                        input_format_code =  static_cast<vertex_format>(input_format_code | VERTEX);
                         vec3 vert;
                         iss >> vert[0] >> vert[1] >> vert[2];
                         verts.push_back(vert);
                     }else if(buffer.compare("f") == 0){
-                        
-                        // map to keep track of vertex argument position
-                        std::unordered_map<int,int> arg_map;
-
-
                         // tokenize the strings based on delimeter
                         // extract indices from each token
                         
@@ -76,12 +97,37 @@ class triangle_mesh : public hittable{
                             normals_idx.push_back(0);
                             uvs_idx.push_back(0);
                             
-                            sscanf(buffer.c_str(), "%i%*c%i%*c%i%*c", &verts_idx.back(), &uvs_idx.back(), &normals_idx.back());
-                            
-                            // convert line indices to array indices
-                            verts_idx.back() = verts_idx.back() - 1;
-                            uvs_idx.back() = uvs_idx.back() - 1;
-                            normals_idx.back() = normals_idx.back() - 1;
+                            switch(input_format_code){
+                                // case with verts, uvs, normals
+                                case(V_UV_NORMAL):                            
+                                    sscanf(buffer.c_str(), "%i%*c%i%*c%i%*c", &verts_idx.back(), &uvs_idx.back(), &normals_idx.back());
+                                    
+                                    // convert line indices to array indices
+                                    verts_idx.back() = verts_idx.back() - 1;
+                                    uvs_idx.back() = uvs_idx.back() - 1;
+                                    normals_idx.back() = normals_idx.back() - 1;
+                                    
+                                    break;
+                                
+                                // case with verts, normals
+                                case(V_NORMAL):
+                                    // TO BE IMPLEMENTED
+                                    break;
+
+                                // case with verts, uvs
+                                case(V_UV):
+                                    // TO BE IMPLEMENTED
+                                    break;
+
+
+                                // case with only verts
+                                case(V):
+                                    verts_idx.back() = stoi(buffer);
+                                    // convert line indices to array indices
+                                    verts_idx.back() = verts_idx.back() - 1;
+                                   
+                                    break;    
+                            }
 
                         }
 
@@ -115,15 +161,17 @@ class triangle_mesh : public hittable{
                                     // tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
                                     
                                     
-                                    
-                                    tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_left]], verts[verts_idx[t_right]], 
-                                    uvs[uvs_idx[t]], uvs[uvs_idx[t_left]], uvs[uvs_idx[t_right]], 
-                                    normals[normals_idx[t]], normals[normals_idx[t_left]], normals[normals_idx[t_right]], 
-                                    mat_ptr, true));
+                                    update_triangle_list(input_format_code, t, t_left, t_right);
+                                    sanitize_indices(input_format_code, t);
+                                    //
+                                    // tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_left]], verts[verts_idx[t_right]], 
+                                    // uvs[uvs_idx[t]], uvs[uvs_idx[t_left]], uvs[uvs_idx[t_right]], 
+                                    // normals[normals_idx[t]], normals[normals_idx[t_left]], normals[normals_idx[t_right]], 
+                                    // mat_ptr, true));
                                     // sanitize indices 
-                                    verts_idx.erase(verts_idx.begin() + t);
-                                    uvs_idx.erase(uvs_idx.begin() + t);
-                                    normals_idx.erase(normals_idx.begin() + t);    
+                                    // verts_idx.erase(verts_idx.begin() + t);
+                                    // uvs_idx.erase(uvs_idx.begin() + t);
+                                    // normals_idx.erase(normals_idx.begin() + t);    
 
                                     t = 0;
 
@@ -140,13 +188,18 @@ class triangle_mesh : public hittable{
                         }
                         // 
                         // tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
-                        tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_left]], verts[verts_idx[t_right]], 
-                        uvs[uvs_idx[t]], uvs[uvs_idx[t_left]], uvs[uvs_idx[t_right]], 
-                        normals[normals_idx[t]], normals[normals_idx[t_left]], normals[normals_idx[t_right]],
-                        mat_ptr, true));
-                        verts_idx.clear();
-                        uvs_idx.clear();
-                        normals_idx.clear();
+                        
+
+                        update_triangle_list(input_format_code, t, t_left, t_right);
+                        clear_indices(input_format_code);
+                        // 
+                        // tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_left]], verts[verts_idx[t_right]], 
+                        // uvs[uvs_idx[t]], uvs[uvs_idx[t_left]], uvs[uvs_idx[t_right]], 
+                        // normals[normals_idx[t]], normals[normals_idx[t_left]], normals[normals_idx[t_right]],
+                        // mat_ptr, true));
+                        // verts_idx.clear();
+                        // uvs_idx.clear();
+                        // normals_idx.clear();
                     
 
                     }
@@ -182,30 +235,120 @@ class triangle_mesh : public hittable{
 
 
     public:
+        
+
 
         std::vector<vec3> verts;
         std::vector<vec3> normals;
         std::vector<vec2> uvs;
+        
+        std::vector<int> verts_idx;
+        std::vector<int> normals_idx;
+        std::vector<int> uvs_idx;
+
         std::vector<shared_ptr<hittable>> tris; 
         shared_ptr<bvh_node> mesh_bvh;
         shared_ptr<material> mat_ptr; 
 
-        const char delimit = ' ';
         int winding;
 
         bool doubleface = true;
 
 
-
+    private:
+        vec2 vtt0 = vec2(1.0,0);
+        vec2 vtt1 = vec2(0,1.0);
+        vec2 vtt2 = vec2(0,0);
 
     private:
         bool triangle_hit(const vec3& v0, const vec3& v1, const vec3& v2, 
                           const vec2& vt0, const vec2& vt1, const vec2& vt2,
                            const vec3& normal,const ray& r, double t_min, double t_max, hit_record& rec) const;
 
-        vec2 vtt0 = vec2(1.0,0);
-        vec2 vtt1 = vec2(0,1.0);
-        vec2 vtt2 = vec2(0,0);
+        void update_triangle_list(vertex_format input_format_code, int t, int t_left, int t_right){ 
+            switch(input_format_code){
+                                case(V_UV_NORMAL): 
+                                    tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_left]], verts[verts_idx[t_right]], 
+                                    uvs[uvs_idx[t]], uvs[uvs_idx[t_left]], uvs[uvs_idx[t_right]], 
+                                    normals[normals_idx[t]], normals[normals_idx[t_left]], normals[normals_idx[t_right]], 
+                                    mat_ptr, doubleface));                
+                                    break;
+                                
+                                case(V_NORMAL):
+                                    // TO BE IMPLEMENTED
+                                    break;
+
+                                // case with verts, uvs
+                                case(V_UV):
+                                    // TO BE IMPLEMENTED
+                                    break;
+
+
+                                // case with only verts
+                                case(V):
+                                    tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_left]], verts[verts_idx[t_right]],
+                                    mat_ptr, doubleface));  
+                                    break;    
+                            }
+        }
+
+        // clear entire array
+        void clear_indices(vertex_format input_format_code){
+            switch(input_format_code){
+                                case(V_UV_NORMAL): 
+                                    verts_idx.clear();
+                                    uvs_idx.clear();
+                                    normals_idx.clear();
+                                    break;
+
+                                case(V_NORMAL):
+                                    verts_idx.clear();
+                                    normals_idx.clear();
+                                    break;
+
+                                // case with verts, uvs
+                                case(V_UV):
+                                    verts_idx.clear();
+                                    uvs_idx.clear();
+                                    break;
+
+
+                                // case with only verts
+                                case(V):
+                                    verts_idx.clear();
+                                    break;    
+                            }
+
+        }
+        // remove element at index t
+        void sanitize_indices(vertex_format input_format_code, int t){
+                switch(input_format_code){
+                        case(V_UV_NORMAL): 
+                            verts_idx.erase(verts_idx.begin() + t);
+                            uvs_idx.erase(uvs_idx.begin() + t);
+                            normals_idx.erase(normals_idx.begin() + t);
+                            break;
+                        case(V_NORMAL):
+                            verts_idx.erase(verts_idx.begin() + t);
+                            normals_idx.erase(normals_idx.begin() + t);
+                            break;
+
+                        // case with verts, uvs
+                        case(V_UV):
+                            verts_idx.erase(verts_idx.begin() + t);
+                            uvs_idx.erase(uvs_idx.begin() + t);
+                            break;
+
+
+                        // case with only verts
+                        case(V):
+                            verts_idx.erase(verts_idx.begin() + t);
+                            break;    
+                    }
+
+        }
+
+
 
 
 };
