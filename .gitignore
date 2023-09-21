@@ -2,7 +2,6 @@
 *.ppm
 *.exe 
 *.ipynb
-.gitignore
 gitkey
 gitkey.pub
 obj_read_test.cpp
