@@ -138,6 +138,7 @@ class image_texture : public texture {
 
             if(!data){
                 std::cerr<< "ERROR: Could not load texture image file '"<<filename<<"'.\n";
+                std::cerr<< "Failure Reason: " << stbi_failure_reason() << "\n"; 
                 width = height = 0;
             }
 
@@ -157,7 +158,6 @@ class image_texture : public texture {
             }
 
             u = clamp(u,0.0,1.0);
-            // v = clamp(v,0.0,1.0);
             v = 1.0 - clamp(v, 0.0, 1.0);
 
             auto i = static_cast<int>(u * width);
@@ -174,10 +174,104 @@ class image_texture : public texture {
 
         }
 
-        private:
+        public:
             unsigned char* data;
             int width, height;
             int bytes_per_scanline;
+
+
+
+
+};
+
+
+
+class cubemap : public texture {
+    
+    public:
+        cubemap(shared_ptr<texture> px, shared_ptr<texture> nx, shared_ptr<texture> py, shared_ptr<texture> ny, shared_ptr<texture> pz, shared_ptr<texture> nz)
+        : posx(px), negx(nx), posy(py), negy(ny), posz(pz), negz(nz)
+        {}
+
+        virtual color value(double u, double v, const vec3& dir) const{
+            float absX = fabs(dir.x());
+            float absY = fabs(dir.y());
+            float absZ = fabs(dir.z());
+
+            int face;
+            // six conditions for six faces
+
+            if(dir.x() > 0 && absX >= absY && absX >= absZ){
+                // set u,v to +X face
+                u = -dir.z();
+                v = dir.y();
+                face = 0;
+
+            }else if(dir.x() < 0 && absX >= absY && absX >= absZ){
+                // set u,v to -X face
+                u = dir.z();
+                v = dir.y();
+                face = 1;
+
+            }else if(dir.y() > 0 && absY >= absX && absY >= absZ){
+                // set u,v to +Y face
+                u = dir.x();
+                v = -dir.z();
+                face = 2;
+
+            }else if(dir.y() < 0 && absY >= absX && absY >= absZ){
+                // set u,v to -Y face
+                u = dir.x();
+                v = dir.z();
+                face = 3;
+
+            }else if(dir.z() > 0 && absZ >= absX && absZ >= absY){
+                // set u,v to +Z face
+                u = dir.x();
+                v = dir.y();
+                face = 4;
+
+            }else if(dir.z() > 0 && absZ >= absX && absZ >= absY){
+                u = -dir.x();
+                v = dir.z();
+                face = 5;
+                // set u,v to -Z face
+            }
+
+            u = 0.5 * (u + 1);
+            v = 0.5 * (v + 1);
+            
+            switch(face){
+                case 0:
+                    return posx->value(u, v, dir);
+                case 1:
+                    return negx->value(u, v, dir);
+                case 2:
+                    return posy->value(u, v, dir);
+                case 3:
+                    return negy->value(u, v, dir);
+                case 4:
+                    return posz->value(u, v, dir);
+                case 5:
+                    return negz->value(u, v, dir);
+
+            }
+
+
+            return color(0,0,0);
+        }
+
+
+        public:
+            shared_ptr<texture> posx;
+            shared_ptr<texture> negx;
+            shared_ptr<texture> posy;
+            shared_ptr<texture> negy;
+            shared_ptr<texture> posz;
+            shared_ptr<texture> negz;
+
+            
+            
 
 
 

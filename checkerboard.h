@@ -6,7 +6,7 @@
 class checkerboard : public hittable {
     public:
         checkerboard(){}
-        checkerboard(point3 bottom_left, vec3 normal, double square_size, int x_squares, int y_squares, vec3 vup, shared_ptr<material> white_m, shared_ptr<material> black_m):bottom_left(bottom_left), normal(unit_vector(normal)),
+        checkerboard(point3 bottom_left, vec3 normal, double square_size, uint16_t x_squares, uint16_t y_squares, vec3 vup, shared_ptr<material> white_m, shared_ptr<material> black_m):bottom_left(bottom_left), normal(unit_vector(normal)),
                     square_size(square_size), x_squares(x_squares), y_squares(y_squares), w_ptr(white_m), b_ptr(black_m),vup(vup) {};
         virtual bool hit(const ray& r, double t_min, double t_max, hit_record& rec) const override;
         virtual bool bounding_box(double time0, double time1, aabb& output_box) const override;
@@ -15,8 +15,8 @@ class checkerboard : public hittable {
         vec3 normal;
         point3 bottom_left;
         double square_size;
-        int x_squares;
-        int y_squares; 
+        uint16_t x_squares;
+        uint16_t y_squares; 
         shared_ptr<material> w_ptr;
         shared_ptr<material> b_ptr;
         vec3 vup;

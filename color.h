@@ -52,10 +52,15 @@ void write_color(std::ostream &out, color pixel_color, int samples_per_pixel) {
     // pixel_color = linear_to_srgb(pixel_color);
     // pixel_color = pixel_color * scale;
 
+    
+
     auto r = pixel_color.r();
     auto g = pixel_color.g();
     auto b = pixel_color.b();
+    
 
+
+    
     r = sqrt(r * scale);
     g = sqrt(g * scale);
     b = sqrt(b * scale);

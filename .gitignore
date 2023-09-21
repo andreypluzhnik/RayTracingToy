@@ -1,10 +1,12 @@
 *.txt
 *.ppm
-*.exe
-*.png
-*.jpg 
+*.exe 
 *.ipynb
-*.obj
+.gitignore
+gitkey
+gitkey.pub
 obj_read_test.cpp
 root_test.cpp
-Resources/
+archive/
+.vscode/
+Tests/

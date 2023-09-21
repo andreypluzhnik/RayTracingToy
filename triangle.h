@@ -14,7 +14,7 @@ class triangle : public hittable {
     public:
         triangle(){}
 
-        // normal computed using edges
+        // vertices and UVs passed, normal computed using edges
         triangle(const vec3& vert0, const vec3& vert1, const vec3& vert2,
         const vec2& u_offset, const vec2& v_offset, const vec2& w_offset, 
         shared_ptr<material> m, const bool dface) : 
@@ -65,7 +65,8 @@ class triangle : public hittable {
             n2 = normal;
         };
 
-        // normal precomputed and passed as parameter
+
+        // normal precomputed and passed as parameter, UV not passed
         triangle(const vec3& vert0, const vec3& vert1, const vec3& vert2,
         const point3& n, shared_ptr<material> m, const bool dface) : 
         v0(vert0), v1(vert1), v2(vert2),

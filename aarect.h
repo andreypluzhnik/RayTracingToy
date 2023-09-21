@@ -11,7 +11,7 @@ class xy_rect : public hittable {
     public:
         xy_rect() {}
         xy_rect( double _x0, double _x1, double _y0, double _y1, double _k, shared_ptr<material> mat)
-        : x0(_x0), x1(_x1), y0(_y0), y1(_y1), k{_k}, mp(mat) {};
+        : x0(_x0), x1(_x1), y0(_y0), y1(_y1), k{_k}, mp(mat), area((x1 - x0) * (y1 - y0)) {};
 
         virtual bool hit(const ray& r, double t_min, double t_max, hit_record& rec) const override;
 
@@ -34,7 +34,7 @@ class xy_rect : public hittable {
                 return 0;
             }
 
-            double area = (x1 - x0) * (y1 - y0);
+            
             double dist_squared =  rec.t * rec.t * v.length_squared();             
             double cosine = fabs(dot(v, rec.normal)) / v.length();
 
@@ -46,7 +46,7 @@ class xy_rect : public hittable {
     public:
         shared_ptr<material> mp;
         double x0, x1, y0, y1, k;
-
+        double area;
 };
 
 
@@ -55,7 +55,7 @@ class xz_rect : public hittable {
         xz_rect() {}
         
         xz_rect( double _x0, double _x1, double _z0, double _z1, double _k, shared_ptr<material> mat)
-        : x0(_x0), x1(_x1), z0(_z0), z1(_z1), k{_k}, mp(mat) {};
+        : x0(_x0), x1(_x1), z0(_z0), z1(_z1), k{_k}, mp(mat), area((x1 - x0) * (z1 - z0)) {};
 
         virtual bool hit(const ray& r, double t_min, double t_max, hit_record& rec) const override;
 
@@ -72,7 +72,6 @@ class xz_rect : public hittable {
             if (!this->hit(ray(origin, v), 0.001, infinity, rec))
                 return 0;
 
-            auto area = (x1-x0)*(z1-z0);
             auto distance_squared = rec.t * rec.t * v.length_squared();
             auto cosine = fabs(dot(v, rec.normal) / v.length());
 
@@ -92,7 +91,7 @@ class xz_rect : public hittable {
     public:
         shared_ptr<material> mp;
         double x0, x1, z0, z1, k;
-
+        double area;
 };
 
 
@@ -101,7 +100,7 @@ class yz_rect : public hittable {
         yz_rect() {}
         
         yz_rect( double _y0, double _y1, double _z0, double _z1, double _k, shared_ptr<material> mat)
-        : y0(_y0), y1(_y1), z0(_z0), z1(_z1), k{_k}, mp(mat) {};
+        : y0(_y0), y1(_y1), z0(_z0), z1(_z1), k{_k}, mp(mat), area((y1 - y0) * (z1 - z0)) {};
 
         virtual bool hit(const ray& r, double t_min, double t_max, hit_record& rec) const override;
 
@@ -121,10 +120,10 @@ class yz_rect : public hittable {
         virtual double value(const point3& origin, const vec3& v){
             hit_record rec;
             if(!this->hit(ray(origin, v), 0.001, infinity, rec)){
-                return false;
+                return 0;
             }
 
-            double area = (y1 - y0) * (z1 - z0);
+
             double dist_squared =  rec.t * rec.t * v.length_squared();             
             double cosine = fabs(dot(v, rec.normal)) / v.length();
             return dist_squared / (cosine * area);
@@ -137,6 +136,7 @@ class yz_rect : public hittable {
     public:
         shared_ptr<material> mp;
         double y0, y1, z0, z1, k;
+        double area;
 
 };
 

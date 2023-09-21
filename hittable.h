@@ -167,6 +167,28 @@ class rotate_z : public hittable
 };
 
 
+class rotate_x : public hittable
+{
+    public:
+        rotate_x(shared_ptr<hittable> p, double angle);
+
+        virtual bool hit(const ray& r, double t_min, double t_max, hit_record& rec) const override;
+
+        virtual bool bounding_box(double time0, double time1, aabb& output_box) const override {
+            output_box = bbox;
+            return hasbox;
+        }
+
+    public:
+        shared_ptr<hittable> ptr;
+        double sin_theta;
+        double cos_theta;
+        bool hasbox;
+        aabb bbox;
+};
+
+
+
 scale::scale(shared_ptr<hittable> p, double s) : scaling(s), ptr(p)
 {
     hasbox = p->bounding_box(0, 1, bbox);
@@ -191,6 +213,40 @@ bool scale::hit(const ray& r, double t_min, double t_max, hit_record& rec) const
     
 
 }
+
+rotate_x::rotate_x(shared_ptr<hittable> p, double angle) : ptr(p) {
+    auto radians = degrees_to_radians(angle);
+    sin_theta = sin(radians);
+    cos_theta = cos(radians);
+    hasbox = ptr->bounding_box(0, 1, bbox);
+
+    point3 min( infinity,  infinity,  infinity);
+    point3 max(-infinity, -infinity, -infinity);
+
+    vec3 test_vector(0,0,0);
+
+    for(int i  = 0; i < 2; i++){
+        for(int j = 0; j < 2; j++){
+            for(int k = 0; k < 2; k ++){
+                auto x = (1 - i) * bbox.min()[0] + i * bbox.max()[0];
+                auto y = (1 - j) * bbox.min()[1] + j * bbox.max()[1];
+                auto z = (1 - k) * bbox.min()[2] + k * bbox.max()[2];
+
+                test_vector[0] = x * cos_theta + y * sin_theta;
+                test_vector[1] = y * cos_theta - x * sin_theta;
+
+                for(int l = 0; l < 3; l++){
+                    min[l] = fmin(min[l], test_vector[l]);
+                    max[l] = fmax(max[l], test_vector[l]); 
+                }
+
+            }
+        }
+    }
+
+    bbox = aabb(min, max);
+}
+
 
 
 rotate_y::rotate_y(shared_ptr<hittable> p, double angle) : ptr(p) {
@@ -243,8 +299,8 @@ rotate_z::rotate_z(shared_ptr<hittable> p, double angle) : ptr(p) {
                 auto y = (1 - j) * bbox.min()[1] + j * bbox.max()[1];
                 auto z = (1 - k) * bbox.min()[2] + k * bbox.max()[2];
 
-                test_vector[0] = x * cos_theta + y * sin_theta;
-                test_vector[1] = y * cos_theta - x * sin_theta;
+                test_vector[0] = y * cos_theta + z * sin_theta;
+                test_vector[1] = z * cos_theta - y * sin_theta;
 
                 for(int l = 0; l < 3; l++){
                     min[l] = fmin(min[l], test_vector[l]);
@@ -258,6 +314,39 @@ rotate_z::rotate_z(shared_ptr<hittable> p, double angle) : ptr(p) {
     bbox = aabb(min, max);
 }
 
+
+
+bool rotate_x::hit(const ray& r, double t_min, double t_max, hit_record& rec) const{
+    auto origin = r.origin();
+    auto direction = r.direction();
+
+    origin[1] = r.origin()[1] * cos_theta + r.origin()[2] * sin_theta;
+    origin[2] = r.origin()[2] * cos_theta - r.origin()[1] * sin_theta;
+
+    direction[1] = r.direction()[1] * cos_theta + r.direction()[2] * sin_theta;
+    direction[2] = r.direction()[2] * cos_theta - r.direction()[1] * sin_theta;
+
+    ray rotated_r(origin, direction, r.time());
+
+    if(!ptr->hit(rotated_r, t_min, t_max, rec)){
+        return false;
+    }
+
+    auto p = rec.p;
+    auto normal = rec.normal;
+
+    p[1] = rec.p[1] * cos_theta - rec.p[2] * sin_theta;
+    p[2] = rec.p[2] * cos_theta + rec.p[1] * sin_theta;
+
+    normal[1] = rec.normal[1] * cos_theta - rec.normal[2] * sin_theta;
+    normal[2] = rec.normal[2] * cos_theta + rec.normal[1] * sin_theta;
+
+    rec.p = p;
+    rec.set_face_normal(rotated_r, normal);
+
+    return true;
+
+}
 
 bool rotate_y::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
     auto origin = r.origin();

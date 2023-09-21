@@ -35,7 +35,7 @@ enum vertex_format{
 
 };
 
-//this defines an integer code for each format
+// defines an integer code for each format
 enum vertex_info{
     VERTEX = 1, 
     UV = 2,
@@ -90,18 +90,20 @@ class triangle_mesh : public hittable{
                     }else if(buffer.compare("f") == 0){
                         // tokenize the strings based on delimeter
                         // extract indices from each token
-                        
+
                         while(!iss.eof()){
-                            iss >> buffer;
+                            if(!(iss >> buffer))
+                                break;
+                            
+                            
                             verts_idx.push_back(0);
                             normals_idx.push_back(0);
                             uvs_idx.push_back(0);
                             
                             switch(input_format_code){
                                 // case with verts, uvs, normals
-                                case(V_UV_NORMAL):                            
+                                case(V_UV_NORMAL):
                                     sscanf(buffer.c_str(), "%i%*c%i%*c%i%*c", &verts_idx.back(), &uvs_idx.back(), &normals_idx.back());
-                                    
                                     // convert line indices to array indices
                                     verts_idx.back() = verts_idx.back() - 1;
                                     uvs_idx.back() = uvs_idx.back() - 1;
@@ -111,12 +113,16 @@ class triangle_mesh : public hittable{
                                 
                                 // case with verts, normals
                                 case(V_NORMAL):
-                                    // TO BE IMPLEMENTED
+                                    std::cerr<< "Vertex/Normal parsing not yet implemented."<<std::endl;
                                     break;
 
                                 // case with verts, uvs
                                 case(V_UV):
-                                    // TO BE IMPLEMENTED
+                                    sscanf(buffer.c_str(), "%i%*c%i%*c", &verts_idx.back(), &uvs_idx.back());
+                                    
+                                    //convert line indices to array indices
+                                    verts_idx.back() = verts_idx.back() - 1;
+                                    uvs_idx.back() = uvs_idx.back() - 1;
                                     break;
 
 
@@ -129,8 +135,11 @@ class triangle_mesh : public hittable{
                                     break;    
                             }
 
+                            
+
                         }
 
+        
 
 
                         /**
@@ -138,13 +147,13 @@ class triangle_mesh : public hittable{
                          */
 
                         int t = 0; 
-
                         int t_left = ( (t - 1 * winding) % (int)verts_idx.size() + (int)verts_idx.size() ) % (int)verts_idx.size();
                         int t_right = ( (t + 1 * winding) % (int)verts_idx.size() + (int)verts_idx.size() ) % (int)verts_idx.size();
 
                         while((int)verts_idx.size() > 3){
                             // confirm that three points form an 'ear'
                             if(is_ear(verts[verts_idx[t]],verts[verts_idx[t_right]],verts[verts_idx[t_left]],normals[normals_idx[t]])){
+
                                 // loop over all other points, check if any one lies in triangle formed by excluded three
                                 bool no_intersection = true;
                                 for(int i = 0;  i < (int)verts_idx.size(); i++){
@@ -154,12 +163,12 @@ class triangle_mesh : public hittable{
                                         break;
                                     }
                                 }
+
                                 if(no_intersection){
 
 
 
                                     // tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_right]], verts[verts_idx[t_left]], normals[normals_idx[t]], mat_ptr, true));
-                                    
                                     
                                     update_triangle_list(input_format_code, t, t_left, t_right);
                                     sanitize_indices(input_format_code, t);
@@ -201,7 +210,6 @@ class triangle_mesh : public hittable{
                         // uvs_idx.clear();
                         // normals_idx.clear();
                     
-
                     }
 
 
@@ -255,10 +263,6 @@ class triangle_mesh : public hittable{
         bool doubleface = true;
 
 
-    private:
-        vec2 vtt0 = vec2(1.0,0);
-        vec2 vtt1 = vec2(0,1.0);
-        vec2 vtt2 = vec2(0,0);
 
     private:
         bool triangle_hit(const vec3& v0, const vec3& v1, const vec3& v2, 
@@ -280,7 +284,10 @@ class triangle_mesh : public hittable{
 
                                 // case with verts, uvs
                                 case(V_UV):
-                                    // TO BE IMPLEMENTED
+                                    tris.push_back(make_shared<triangle>(verts[verts_idx[t]], verts[verts_idx[t_left]], verts[verts_idx[t_right]], 
+                                    uvs[uvs_idx[t]], uvs[uvs_idx[t_left]], uvs[uvs_idx[t_right]], 
+                                    mat_ptr, doubleface)); 
+
                                     break;
 
 
@@ -435,10 +442,15 @@ bool triangle_mesh::in_triangle(const vec3 &v0, const vec3 &v1, const vec3 &v2, 
     // to be safe, project vp onto plane formed by the three points
 
     vec3 compare_to = cross(v01, v0p);
+
+
+
     if(dot(compare_to, cross(v20, v2p)) < 0) return false;
 
     if(dot(compare_to, cross(v12, v1p)) < 0) return false;
-    
+
+
+
     return true;
 
 

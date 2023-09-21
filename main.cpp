@@ -19,14 +19,17 @@
  
 // implement multiple importance sampling 
 
-color ray_color(const ray& r, const color& background , const hittable& world, shared_ptr<hittable>& lights, int depth){ 
+color ray_color(const ray& r, shared_ptr<texture>& background , const hittable& world, shared_ptr<hittable>& lights, int depth){ 
     hit_record rec;
     
     if(depth <= 0)
         return color(0,0,0);
 
-    if(!world.hit(r, 0.001, infinity, rec))
-        return background;
+    if(!world.hit(r, 0.001, infinity, rec)){
+        // double phi = (atan2(r.direction().x(), r.direction().y()) + pi) / (2 * pi);
+        // double theta = acos(r.direction().z())/pi;
+        return background->value(0, 0 ,r.direction());
+    }
 
     scatter_record srec;
     color emitted = rec.mat_ptr->emitted(r, rec, rec.u, rec.v, rec.p);
@@ -44,12 +47,16 @@ color ray_color(const ray& r, const color& background , const hittable& world, s
 
     ray scattered = ray(rec.p, mix.generate(), r.time());
     auto pdf_val = mix.value(scattered.direction());
-    // pdf_val = 0.5 * (brdf->value(scattered.direction()) + lights_pdf->value(scattered.direction())); 
     
-    // mixture_pdf mpdf(brdf, lights_pdf);
     
-    // scattered = ray(rec.p, mpdf.generate(), r.time());
-    // pdf_val = mpdf.value(scattered.direction());
+
+    if(pdf_val == false){
+        scattered = ray(rec.p, srec.pdf_ptr->generate(), r.time());
+        pdf_val = srec.pdf_ptr->value(scattered.direction());
+
+    }
+    
+
     
     return emitted + 
            srec.attenuation * ray_color(scattered, background, world, lights, depth - 1) * rec.mat_ptr->scattering_pdf(r, rec, scattered)/ pdf_val;
@@ -560,21 +567,102 @@ hittable_list utah_teapot(shared_ptr<hittable>& lights){
 
     
      /* Textured Triangle Mesh*/
-    auto mesh_mat = make_shared<glossy>(color(0.96, 0.36, 0.03), color(0.96, 0.36, 0.26), 0.1, 0.15);
-    // auto mesh_mat = make_shared<lambertian>(mesh_tex);
-    shared_ptr<hittable> mesh = make_shared<triangle_mesh>("teapot.obj", mesh_mat,-1); 
-    mesh = make_shared<rotate_y>(mesh,45);
-    mesh = make_shared<rotate_z>(mesh,45);
+    auto mesh_mat = make_shared<glossy>(color(0.96, 0.36, 0.03), color(0.96, 0.36, 0.26), 0.1, 0.25);
+    
+    double roughness = 0.01;
+    double index_ref = 1.3;
+    color c = color(0.31, 0.26, 0.95);
+
+    auto blue_glass = make_shared<dielectric>(index_ref, roughness, c);
+
+    // shared_ptr<hittable> mesh = make_shared<triangle_mesh>("teapot.obj", glass, -1);
+    // mesh = make_shared<rotate_y>(mesh,90);
+    // mesh = make_shared<rotate_z>(mesh,90);
+    // mesh = make_shared<rotate_y>(mesh,-30);
+
+    // mesh = make_shared<scale>(mesh, 10);
+    // mesh = make_shared<translate>(mesh, vec3(0, -75, 0));
+    // mesh = make_shared<translate>(mesh, vec3(315, 70, 240));
+
+
+    
+    shared_ptr<hittable> mesh = make_shared<triangle_mesh>("teapot.obj", blue_glass, -1); 
+    mesh = make_shared<rotate_y>(mesh,90);
+    mesh = make_shared<rotate_z>(mesh,90);
+    mesh = make_shared<rotate_y>(mesh,-45);
+
     // mesh = make_shared<rotate_y>(mesh,-90);
-    mesh = make_shared<scale>(mesh, 50);
+    mesh = make_shared<scale>(mesh, 10);
+    mesh = make_shared<translate>(mesh, vec3(0, 75, 0));
 
 
-    mesh = make_shared<translate>(mesh, vec3(315, 100, 240));
+    mesh = make_shared<translate>(mesh, vec3(315, 70, 240));
     objects.add(mesh);
+    
+
 
     return objects;
 
 
+}
+
+hittable_list checkerboard_scene(shared_ptr<hittable>& lights){
+    hittable_list objects;
+
+
+    double roughness = 0.04;
+    double specular_chance = 0.04;
+    double index_ref = 1.15;
+
+    auto white = color(0.99, 0.95, 0.95);
+    auto black = color(0.1,0.1,0.1);
+    auto cboard_floor = make_shared<checkerboard>(point3(0,0,555), point3(0, 1, 0), 15, 37, 37, vec3(0,0,-1), make_shared<lambertian>(white), make_shared<lambertian>(black));
+    auto cboard_wall = make_shared<checkerboard>(point3(0,0,555), point3(0, 0, 1), 15, 37, 37, vec3(0,1,0), make_shared<lambertian>(white), make_shared<lambertian>(black));
+    auto light = make_shared<diffuse_light>(color(15, 15, 15));
+    auto glass = make_shared<dielectric>(index_ref, roughness, specular_chance, color(0.85, 0.9, 0.55));
+    auto orange_gloss = make_shared<glossy>(color(0.96, 0.36, 0.03), color(0.96, 0.36, 0.26), 0.1, 0.25);
+    auto green = make_shared<lambertian>(color(0.12, 0.45, 0.15));
+
+    
+   
+
+    shared_ptr<hittable> glass_teapot = make_shared<triangle_mesh>("teapot.obj", glass, -1);
+
+    glass_teapot = make_shared<rotate_y>(glass_teapot,90);
+    glass_teapot = make_shared<rotate_z>(glass_teapot,90);
+    glass_teapot = make_shared<rotate_y>(glass_teapot,-47);
+
+    glass_teapot = make_shared<scale>(glass_teapot, 7);
+    glass_teapot = make_shared<translate>(glass_teapot, vec3(100, 10, 350));
+
+
+
+    shared_ptr<hittable> glossy_teapot = make_shared<triangle_mesh>("teapot.obj", orange_gloss, -1);
+
+    glossy_teapot = make_shared<rotate_y>(glossy_teapot,90);
+    glossy_teapot = make_shared<rotate_z>(glossy_teapot,90);
+    glossy_teapot = make_shared<rotate_y>(glossy_teapot, 54);
+
+    glossy_teapot = make_shared<scale>(glossy_teapot, 7);
+    glossy_teapot = make_shared<translate>(glossy_teapot, vec3(350, 10, 150));
+
+
+
+    
+    lights = make_shared<xz_rect>(113, 443, 127, 432, 554, light);
+    
+
+
+    objects.add(glass_teapot);
+    objects.add(glossy_teapot);
+    objects.add(make_shared<flip_face>(lights));
+    objects.add(cboard_floor);
+    objects.add(cboard_wall);
+
+    
+
+
+    return objects;
 }
 
 hittable_list random_scene(){
@@ -648,14 +736,14 @@ int main(){
     point3 lookat;
     auto vfov = 40.0;
     auto aperture = 0.0;
-    color background(0,0,0);
+    shared_ptr<texture> background = make_shared<solid_color>(0,0,0);
 
 
 
-    switch(16){
+    switch(17){
         case 1:
             world = random_scene();
-            background = color(0.7,0.8,1);
+            background = make_shared<solid_color>(color(0.7,0.8,1));
             lookfrom = point3(13,2,3);
             lookat = point3(0,0,0);
             vfov = 20.0;
@@ -664,7 +752,7 @@ int main(){
 
         case 2:
             world = two_spheres();
-            background = color(0.7,0.8,1);
+            background = make_shared<solid_color>(color(0.7,0.8,1));
             lookfrom = point3(13,2,3);
             lookat = point3(0,0,0);
             vfov = 20.0;
@@ -673,25 +761,25 @@ int main(){
         
         case 3:
             world = moo_moo_sphere();
-            background = color(0.7,0.8,1);
+            background = make_shared<solid_color>(color(0.7,0.8,1));
             lookfrom = point3(5,1,-4);
             lookat = point3(0,0,0);
             vfov = 40.0;
         case 4:           
             world = two_perlin_spheres();
-            background = color(0.7,0.8,1);
+            background = make_shared<solid_color>(color(0.7,0.8,1));
             lookfrom = point3(13,2,3);
             lookat = point3(0,0,0);
             vfov = 20.0;
         case 5:
             world = marble_board();
-            background = color(0.7,0.8,1);
+            background = make_shared<solid_color>(color(0.7,0.8,1));
             lookfrom = point3(0, 0.7, 0);
             lookat = point3(0,0.75,-1);
             vfov = 20.0;
         case 6:
             world = simple_light();
-            background = color(0,0,0);
+            background = make_shared<solid_color>(color(0,0,0));
             lookfrom = point3(26,3,6);
             lookat = point3(0,2,0);
             vfov = 20.0;
@@ -704,7 +792,7 @@ int main(){
             image_height = static_cast<int>(image_width / aspect_ratio);
             samples_per_pixel = 10;
             sqrt_ssp = (int)sqrt(samples_per_pixel);
-            background = color(0,0,0);
+            background = make_shared<solid_color>(color(0,0,0));
             lookfrom = point3(278, 278, -800);
             lookat = point3(278, 278, 0);
             vfov = 40.0;
@@ -790,7 +878,7 @@ int main(){
             image_height = static_cast<int>(image_width / aspect_ratio);
             samples_per_pixel = 20;
             sqrt_ssp = (int)sqrt(samples_per_pixel);
-            background = color(0,0,0);
+            background = make_shared<solid_color>(color(0,0,0));
             lookfrom = point3(278, 278, -800);
             lookat = point3(278, 278, 0);
             vfov = 40.0;
@@ -804,14 +892,13 @@ int main(){
             image_height = static_cast<int>(image_width / aspect_ratio);
             samples_per_pixel = 100;
             sqrt_ssp = (int)sqrt(samples_per_pixel);
-            background = color(0,0,0);
+            background = make_shared<solid_color>(color(0,0,0));
             lookfrom = point3(278, 278, -800);
             lookat = point3(278, 278, 0);
             vfov = 40.0;
             max_depth = 20;
             break;
 
-        default:
         case 16:
             world = utah_teapot(lights);
             aspect_ratio = 1.0;
@@ -819,12 +906,40 @@ int main(){
             image_height = static_cast<int>(image_width / aspect_ratio);
             samples_per_pixel = 100;
             sqrt_ssp = (int)sqrt(samples_per_pixel);
-            background = color(0,0,0);
+            background = make_shared<solid_color>(color(0,0,0));
             lookfrom = point3(278, 278, -800);
             lookat = point3(278, 278, 0);
             vfov = 40.0;
             max_depth = 20;
             break;
+        
+        default:
+        case 17:
+            world = checkerboard_scene(lights);
+            image_width = 1920;
+            aspect_ratio = 1.0;
+
+            image_height = static_cast<int>(image_width / aspect_ratio);
+            samples_per_pixel = 2000;
+            sqrt_ssp = (int)sqrt(samples_per_pixel);
+
+            /*Cubemap faces*/
+            shared_ptr<texture> posx = make_shared<image_texture>("./textures/LancellottiChapel/posx.jpg");    
+            shared_ptr<texture> negx = make_shared<image_texture>("./textures/LancellottiChapel/negx.jpg");
+            shared_ptr<texture> posy = make_shared<image_texture>("./textures/LancellottiChapel/posy.jpg");
+            shared_ptr<texture> negy = make_shared<image_texture>("./textures/LancellottiChapel/negy.jpg");
+            shared_ptr<texture> posz = make_shared<image_texture>("./textures/LancellottiChapel/posz.jpg");
+            shared_ptr<texture> negz = make_shared<image_texture>("./textures/LancellottiChapel/negz.jpg");
+
+            
+
+            background = make_shared<cubemap>(posx, negx, posy, negy, posz, negz);
+            lookfrom = point3(278, 278, -800);
+            lookat = point3(278, 278, 0);
+            vfov = 38.0;
+            max_depth = 50;
+            break;
+        
 
 
 
@@ -853,15 +968,24 @@ int main(){
             //     pixel_color += ray_color(r, world, max_depth);
             // }
             // snippet distributing samples_per_pixel rays EVENLY over a pixel
+
             auto u = double(i) / (image_width - 1);
             auto v = double(j) / (image_height - 1);
+            
             for(int shift_u = 0; shift_u < sqrt_ssp; shift_u ++){
                 u += 1.0/(sqrt_ssp * (image_width - 1));
                 for(int shift_v = 0; shift_v < sqrt_ssp; shift_v ++){
                     v += 1.0/(sqrt_ssp * (image_height - 1));
                 
                     ray r = cam.get_ray(u,v);
-                    pixel_color += ray_color(r, background, world, lights, max_depth);
+                    color sample_color = ray_color(r, background, world, lights, max_depth);
+                    
+                    // deal with pesky NaNs
+                    if(sample_color.r() != sample_color.r() || sample_color.g() != sample_color.g() || sample_color.b() != sample_color.b()){
+                        continue;
+                    }else{
+                        pixel_color += sample_color; 
+                    }
                 }
                 v = double(j) / (image_height - 1);
             }
